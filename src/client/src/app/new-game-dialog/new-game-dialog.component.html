@@ -1,0 +1,3 @@
+<label>Name:</label>
+<input [formControl]="nameControl" (keydown.enter)="joinGame()" />
+<button [disabled]="nameControl.invalid" (click)="joinGame()">Join</button>
