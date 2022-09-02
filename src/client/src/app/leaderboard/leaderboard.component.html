@@ -1,10 +1,10 @@
 <div class="leaderboard">
   <ng-container *ngIf="state">
     <div
-      *ngFor="let playa of state.players | sort: 'score':true"
+      *ngFor="let playa of state.players | sort: 'level':true"
       [class.player]="player?.id === playa.id"
     >
-      {{ playa.name }}: {{ playa.score }}
+      {{ playa.name }}: Lvl. {{ playa.level }}
     </div>
   </ng-container>
 </div>

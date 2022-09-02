@@ -6,14 +6,14 @@
   "scripts": {
     "init": "ngrok authtoken",
     "build": "tsc",
-    "postbuild": "cd src/client ; npm run build",
+    "postbuild": "cd src\\client && npm run build",
     "watch": "tsc -w --preserveWatchOutput",
     "local": "nodemon",
     "prestart": "npm run build",
     "start": "concurrently -n tsc,node,ng 'npm:watch' 'npm:local' 'cd src/client ; npm run watch'",
     "prestart:internet": "npm run build",
     "start:internet": "concurrently -n start,ngrok 'npm:start' 'ngrok http 3000'",
-    "postinstall": "cd src/client ; npm install ; cd .. ; vercel"
+    "postinstall": "cd src\\client && npm install && cd .. "
   },
   "author": "",
   "license": "ISC",

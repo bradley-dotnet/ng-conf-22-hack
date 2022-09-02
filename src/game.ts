@@ -1,4 +1,4 @@
-import { gameLogic, getInitialState, getUnoccupiedLocation } from './logic';
+import { gameLogic, generateAiPlayer, getInitialState, getUnoccupiedLocation } from './logic';
 import { Command, Commands, IGameState } from './models';
 
 export type UpdateCallback = (gameState: IGameState) => void;
@@ -44,12 +44,16 @@ export class Game {
     };
 
     const location = getUnoccupiedLocation(this._gameState);
+    const species = generateAiPlayer(this._gameState).species; // TODO: Let them choose!
 
     this._gameState.players.push({
       ...location,
       id,
       name,
-      score: 1,
+      level: 1,
+      xp: 0,
+      species,
+      health: species.maxHealth * 3
     });
   }
 

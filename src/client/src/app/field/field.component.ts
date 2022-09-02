@@ -43,7 +43,29 @@ export class FieldComponent implements AfterViewInit, OnChanges {
   canvas?: HTMLCanvasElement;
   ctx?: CanvasRenderingContext2D;
 
-  constructor() {}
+  imageCache: {[key: number]: Promise<ImageBitmap>} = {};
+  potionCache!: Promise<ImageBitmap>;
+  maxHealth!: number;
+
+  constructor() {
+    for (let id of [1,2,3,4,5,6,7,8,9,63,64,65,66,67,68,69,633,634,635]) {
+      console.log('setup')
+      const sprite = new Image();
+      sprite.src = `https://github.com/PokeAPI/sprites/raw/master/sprites/pokemon/${id}.png`;
+
+      this.imageCache[id] = new Promise<ImageBitmap>((resolve) => sprite.onload = () => {
+        console.log('loaded')
+        resolve(createImageBitmap(sprite));
+      });
+    }
+
+    const potionSprite = new Image();
+    potionSprite.src = `https://github.com/PokeAPI/sprites/raw/master/sprites/items/potion.png`;
+    
+    this.potionCache = new Promise<ImageBitmap>((resolve) => potionSprite.onload = () => {
+      resolve(createImageBitmap(potionSprite));
+    });
+  }
 
   get width() {
     return this.canvas?.clientWidth ?? 0;
@@ -61,9 +83,14 @@ export class FieldComponent implements AfterViewInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     this.render();
+    this.maxHealth = this.getRealMaxHealth(this.player);
   }
 
-  render() {
+ getRealMaxHealth(player: IPlayer | undefined): number {
+    return Math.floor((player?.level ?? 0) * (player?.species.maxHealth ?? 0) * 3);
+  }
+
+  async render() {
     if (!this.canvas || !this.ctx) {
       return;
     }
@@ -72,9 +99,9 @@ export class FieldComponent implements AfterViewInit, OnChanges {
     this.canvas.height = this.canvas.clientHeight;
     this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
     this.drawBackground();
-    this.drawTokens();
-    this.drawOtherPlayers();
-    this.drawPlayer();
+    await this.drawTokens();
+    await this.drawOtherPlayers();
+    await this.drawPlayer();
   }
 
   getCanvasCoordinatesFromStateCoordinates(
@@ -101,8 +128,8 @@ export class FieldComponent implements AfterViewInit, OnChanges {
     return { x, y };
   }
 
-  drawPlayer() {
-    if (!this.canvas || !this.ctx) {
+  async drawPlayer() {
+    if (!this.canvas || !this.ctx || !this.player) {
       return;
     }
 
@@ -110,22 +137,20 @@ export class FieldComponent implements AfterViewInit, OnChanges {
     const x = this.canvas.clientWidth / 2;
     const y = this.canvas.clientHeight / 2;
 
-    this.drawCircle(
+    await this.drawPicture(
       x,
       y,
-      this.playerSize,
-      this.playerColor,
-      'black',
-      this.player?.name ?? DEFAULT_PLAYER_NAME
+      this.getPlayerSprite(this.player),
+      this.player.name ?? DEFAULT_PLAYER_NAME
     );
   }
 
-  drawTokens() {
+  async drawTokens() {
     if (!this.canvas || !this.ctx || !this.state) {
       return;
     }
 
-    const visibleCoins = this.state.coins
+    const visibleCoins = this.state.potions
       .map((c) => ({
         coin: c,
         canvasCoord: this.getCanvasCoordinatesFromStateCoordinates(c.x, c.y),
@@ -136,11 +161,11 @@ export class FieldComponent implements AfterViewInit, OnChanges {
       const x = coin.canvasCoord!.x;
       const y = coin.canvasCoord!.y;
 
-      this.drawCircle(x, y, this.playerSize, DEFAULT_COIN_COLOR, 'gray');
+      await this.drawPicture(x, y, this.potionCache);
     }
   }
 
-  drawOtherPlayers() {
+  async drawOtherPlayers() {
     if (!this.canvas || !this.ctx || !this.state) {
       return;
     }
@@ -157,12 +182,10 @@ export class FieldComponent implements AfterViewInit, OnChanges {
       const x = p.canvasCoord!.x;
       const y = p.canvasCoord!.y;
 
-      this.drawCircle(
+      await this.drawPicture(
         x,
         y,
-        this.playerSize,
-        DEFAULT_OTHER_PLAYER_COLOR,
-        'black',
+        this.getPlayerSprite(p.player),
         p.player.name
       );
     }
@@ -190,28 +213,32 @@ export class FieldComponent implements AfterViewInit, OnChanges {
     }
   }
 
-  drawCircle(
+  async drawPicture(
     x: number,
     y: number,
-    size: number,
-    fillColor: string,
-    strokeColor: string,
+    image$: Promise<ImageBitmap>,
     label?: string
   ) {
     if (!this.ctx) {
       return;
     }
 
-    this.ctx.beginPath();
-    this.ctx.fillStyle = fillColor;
-    this.ctx.strokeStyle = strokeColor;
-    this.ctx.arc(x, y, size, 0, Math.PI * 2, false);
-    this.ctx.stroke();
-    this.ctx.fill();
+    const image = await image$;
+    this.ctx.drawImage(image, x, y);
     if (label) {
       this.ctx.textAlign = 'center';
       const nameHeight = Number(/\d+/.exec(this.ctx.font));
       this.ctx.fillText(label, x, y - nameHeight - 0.2 * this.playerSize);
+    }
+  }
+
+  private getPlayerSprite(player: IPlayer): Promise<ImageBitmap> {
+    if (player.level < 10) {
+      return this.imageCache[player.species.speciesId];
+    } else if (player.level < 20) {
+      return this.imageCache[player.species.l1EvolutionSpeciesId];
+    } else {
+      return this.imageCache[player.species.l2EvolutionSpeciesId];
     }
   }
 }
